@@ -1,5 +1,5 @@
 <script>
-  const state = { step: 1, campaigns: [], dates: [], selectedSlot: null, loading: false };
+  const state = { step: 1, campaigns: [], selectedCampaignId: '', dates: [], selectedSlot: null, loading: false };
   const $ = (selector) => document.querySelector(selector);
 
   function runServer(functionName, ...args) {
@@ -65,15 +65,8 @@
     try {
       const response = handleResponse(await runServer('getActiveCampaigns'));
       state.campaigns = response.campaigns || [];
-      const select = $('#campaign');
-      select.innerHTML = '<option value="">Selecciona una campaña</option>';
-      state.campaigns.forEach((campaign) => {
-        const option = document.createElement('option');
-        option.value = campaign.campaignId;
-        option.textContent = campaign.name;
-        select.appendChild(option);
-      });
-      if (!state.campaigns.length) showAlert('No hay campañas activas en este momento.', 'warning');
+      state.selectedCampaignId = state.campaigns.length ? state.campaigns[0].campaignId : '';
+      if (state.selectedCampaignId) await loadDates();
     } catch (error) { showAlert(error.message); }
     finally { setLoading(false); }
   }
@@ -96,7 +89,7 @@
   async function loadDates() {
     state.selectedSlot = null;
     $('#confirm-reservation').disabled = true;
-    const campaignId = $('#campaign').value;
+    const campaignId = state.selectedCampaignId;
     $('#date').innerHTML = '<option value="">Consultando fechas...</option>';
     $('#date').disabled = true;
     $('#slots').innerHTML = '';
@@ -116,7 +109,7 @@
   async function loadSlots() {
     state.selectedSlot = null;
     $('#confirm-reservation').disabled = true;
-    const campaignId = $('#campaign').value;
+    const campaignId = state.selectedCampaignId;
     const date = $('#date').value;
     $('#slots').innerHTML = '';
     if (!campaignId || !date) return;
@@ -138,7 +131,7 @@
   async function confirmReservation() {
     if (!state.selectedSlot) { showAlert('Selecciona un horario.'); return; }
     setLoading(true, 'Confirmando tu cita...'); showAlert('');
-    const payload = { campaignId: $('#campaign').value, slotId: state.selectedSlot.slotId, dni: $('#dni').value.trim(), nombres: $('#nombres').value.trim(), apellidos: $('#apellidos').value.trim(), telefono: $('#telefono').value.trim(), area: $('#area').value.trim() };
+    const payload = { campaignId: state.selectedCampaignId, slotId: state.selectedSlot.slotId, dni: $('#dni').value.trim(), nombres: $('#nombres').value.trim(), apellidos: $('#apellidos').value.trim(), telefono: $('#telefono').value.trim(), area: $('#area').value.trim() };
     try {
       const response = handleResponse(await runServer('createReservation', payload));
       renderConfirmation(response.reservation); showStep(4);
@@ -174,7 +167,6 @@
   document.addEventListener('DOMContentLoaded', async () => {
     $('#continue-dni').addEventListener('click', lookupDni);
     $('#continue-person').addEventListener('click', () => { if (validatePersonStep()) { showAlert(''); showStep(3); loadCampaigns(); } });
-    $('#campaign').addEventListener('change', loadDates);
     $('#date').addEventListener('change', loadSlots);
     $('#confirm-reservation').addEventListener('click', confirmReservation);
     $('#new-reservation').addEventListener('click', resetForm);

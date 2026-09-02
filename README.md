@@ -41,10 +41,12 @@ El Spreadsheet **nunca se comparte**. La aplicación web se despliega con `execu
 |---|---|---|
 | 1 | Ingresa DNI (8 dígitos) | `lookupPersonByDni` — si el DNI ya existe en `PERSONAS`, precarga nombres y apellidos |
 | 2 | Confirma nombres, apellidos, teléfono y área | Validación en cliente; nada se persiste todavía |
-| 3 | Elige campaña → fecha → horario | `getActiveCampaigns`, `getCampaignDates`, `getAvailableSlots` |
+| 3 | Elige fecha → horario | `getActiveCampaigns` (la campaña se autoselecciona), `getCampaignDates`, `getAvailableSlots` |
 | 4 | Confirmación con código `CS-XXXXX` | `createReservation` dentro de `LockService.getScriptLock()` |
 
 La interfaz muestra un indicador de progreso, estados de carga y mensajes de error legibles (nunca trazas técnicas).
+
+El paso 3 **no expone un selector de campaña**: el cliente llama a `getActiveCampaigns()` y toma automáticamente la primera campaña activa, guardándola en `state.selectedCampaignId`. Esto simplifica el flujo en el caso normal (una sola campaña vigente a la vez); si hubiera varias activas en simultáneo, la persona siempre reservaría en la primera que devuelva la hoja `CAMPANAS`.
 
 ### Modelo de datos (7 hojas)
 
