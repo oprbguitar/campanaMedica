@@ -10,6 +10,6 @@
  *             la primera campaña activa de la hoja CAMPANAS.
  */
 window.PORTAL_CONFIG = {
-  apiUrl: '',
+  apiUrl: 'https://script.google.com/macros/s/AKfycbyqWjy-umGpG9lgNsKzXAzCWwvVLl-Mku9Bfdcchr-ReNxR2eSeaJpyR0pknHXQgeru/exec',
   campaignId: ''
 };
