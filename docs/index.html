@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light">
 <meta name="description" content="Reserva tu cita en la campaña de salud. Elige mes, día y hora disponibles.">
 <meta name="robots" content="noindex">
-<title>Reserva tu cita — Campaña de Salud</title>
+<title>Campaña de Salud</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b6b61'/><path d='M13 7h6v6h6v6h-6v6h-6v-6H7v-6h6z' fill='%23fff'/></svg>">
 <style>
   :root { color-scheme: light; --ink: #173b39; --muted: #607674; --primary: #0b6b61; --primary-dark: #075047; --surface: #ffffff; --background: #eef7f4; --line: #d5e4e0; --danger: #a53e3e; --warning: #805d18; --ok: #187243; }
@@ -16,7 +16,7 @@
 
   .app-header { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
   .brand-mark { flex: 0 0 auto; width: 46px; height: 46px; }
-  .eyebrow { margin: 0 0 3px; color: var(--primary); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .eyebrow { margin: 3px 0 0; color: var(--primary); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
   h1, h2 { margin: 0; letter-spacing: -.02em; }
   h1 { font-size: clamp(20px, 5vw, 26px); }
   h2 { font-size: 21px; }
@@ -101,8 +101,8 @@
       <path d="M11 33h6l2.5-5 3 9 2.5-4h12" fill="none" stroke="#7fd8c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
     </svg>
     <div>
-      <p class="eyebrow" id="company-name">Campaña de Salud</p>
-      <h1 id="app-title">Reserva tu cita</h1>
+      <h1>Campaña de Salud</h1>
+      <p class="eyebrow" id="app-title">Reserva tu cita</p>
     </div>
   </header>
 
@@ -182,6 +182,30 @@
       <p><span>Código</span><strong id="confirmation-code" class="reservation-code"></strong></p>
     </div>
     <button class="button button-secondary" id="new-reservation" type="button">HACER OTRA RESERVA</button>
+  </section>
+
+  <section class="card" id="check">
+    <details>
+      <summary>¿Ya reservaste? Consulta o verifica tu cita</summary>
+      <div class="two-fields">
+        <div>
+          <label for="check-code">Código</label>
+          <input id="check-code" maxlength="30" placeholder="CS-XXXXX" autocomplete="off">
+        </div>
+        <div>
+          <label for="check-dni">DNI</label>
+          <input id="check-dni" inputmode="numeric" maxlength="8" autocomplete="off">
+        </div>
+      </div>
+      <button class="button button-secondary" id="check-button" type="button">CONSULTAR</button>
+      <p class="field-error" id="check-error" hidden></p>
+      <div class="confirmation-box" id="check-result" hidden>
+        <p><span>Nombre</span><strong id="check-name"></strong></p>
+        <p><span>Fecha</span><strong id="check-date"></strong></p>
+        <p><span>Hora</span><strong id="check-time"></strong></p>
+        <p><span>Estado</span><strong id="check-status"></strong></p>
+      </div>
+    </details>
   </section>
 
   <p class="app-footer">Solo se registra tu cita. No se almacena información clínica.</p>
@@ -318,9 +342,7 @@
     setBusy(true, 'Cargando horarios...');
     return readApi('bootstrap').then(function (data) {
       if (data.app) {
-        $('#company-name').textContent = data.app.company || 'Campaña de Salud';
         $('#app-title').textContent = data.app.title || 'Reserva tu cita';
-        document.title = (data.app.title || 'Reserva tu cita') + ' — ' + (data.app.company || 'Campaña de Salud');
       }
       applyAvailability(data);
       $('#booking').hidden = false;
@@ -501,6 +523,31 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  function checkReservation() {
+    var code = fieldValue('check-code').toUpperCase();
+    var dni = fieldValue('check-dni');
+    var error = $('#check-error');
+    $('#check-result').hidden = true;
+    if (!code || !/^\d{8}$/.test(dni)) {
+      error.textContent = 'Escribe tu código de reserva y tu DNI de 8 dígitos.';
+      error.hidden = false;
+      return;
+    }
+    error.hidden = true;
+    $('#check-button').disabled = true;
+    writeApi({ action: 'status', reservationCode: code, dni: dni }).then(function (data) {
+      var reservation = data.reservation;
+      $('#check-name').textContent = reservation.name || '—';
+      $('#check-date').textContent = longDateLabel(reservation.date);
+      $('#check-time').textContent = reservation.time;
+      $('#check-status').textContent = reservation.status === 'CANCELADO' ? 'Cancelada' : 'Confirmada';
+      $('#check-result').hidden = false;
+    }).catch(function (requestError) {
+      error.textContent = requestError.message;
+      error.hidden = false;
+    }).finally(function () { $('#check-button').disabled = false; });
+  }
+
   function resetForm() {
     ['nombres', 'apellidos', 'dni', 'telefono', 'area', 'correo'].forEach(function (id) {
       $('#' + id).value = '';
@@ -521,6 +568,7 @@
   document.addEventListener('DOMContentLoaded', function () {
     if (!API_URL) {
       $('#setup').hidden = false;
+      $('#check').hidden = true;
       return;
     }
 
@@ -543,6 +591,11 @@
     $('#next-month').addEventListener('click', function () {
       if (state.monthIndex < state.months.length - 1) { state.monthIndex++; renderMonth(); }
     });
+
+    $('#check-dni').addEventListener('input', function () {
+      this.value = this.value.replace(/\D/g, '').slice(0, 8);
+    });
+    $('#check-button').addEventListener('click', checkReservation);
 
     $('#booking').addEventListener('submit', submitReservation);
     $('#new-reservation').addEventListener('click', resetForm);

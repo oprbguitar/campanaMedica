@@ -38,8 +38,7 @@ function getAppConfig() {
     return {
       success: true,
       app: {
-        company: getConfigValue_('EMPRESA') || '',
-        title: getConfigValue_('TITULO_APP') || 'Campaña de Salud',
+        title: getConfigValue_('TITULO_APP') || 'Reserva tu cita',
         timeZone: getConfigValue_('ZONA_HORARIA') || 'America/Lima'
       }
     };

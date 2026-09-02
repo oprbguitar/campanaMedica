@@ -62,9 +62,9 @@ El paso 3 **no expone un selector de campaña**: el cliente llama a `getActiveCa
 | `PERSONAS` | Padrón de personas por DNI | `person_id`, `dni`, `nombres`, `apellidos`, `telefono`, `area`, `correo`, `created_at`, `updated_at` |
 | `RESERVAS` | Citas | `reservation_id`, `reservation_code`, `campaign_id`, `slot_id`, `person_id`, `dni`, `fecha`, `hora`, `estado`, `created_at`, `updated_at` |
 | `AUDITORIA` | Bitácora append-only | `timestamp`, `accion`, `reservation_id`, `dni`, `detalle` |
-| `AGENDA_MEDICO` | Vista reconstruible para el médico | `fecha`, `hora`, `DNI`, `nombres`, `apellidos`, `area`, `estado`, `reservation_code` |
+| `AGENDA_MEDICO` | Vista reconstruible para el médico | `fecha`, `hora`, `DNI`, `nombres`, `apellidos`, `area`, `estado`, `reservation_code`, `registrado_at` |
 
-Claves de `CONFIG` con valores por defecto: `EMPRESA`, `TITULO_APP`, `DURACION_SLOT` (60), `ZONA_HORARIA` (`America/Lima`), `RESERVAS_POR_PERSONA` (1).
+Claves de `CONFIG` con valores por defecto: `TITULO_APP` (`Reserva tu cita`), `DURACION_SLOT` (60), `DURACION_MINIMA` (60), `ZONA_HORARIA` (`America/Lima`), `RESERVAS_POR_PERSONA` (1). No hay nombre de empresa: la cabecera dice siempre **Campaña de Salud**.
 
 Todos los identificadores usan `Utilities.getUuid()`. El `reservation_code` tiene formato `CS-XXXXX` con un alfabeto sin caracteres ambiguos (`ABCDEFGHJKLMNPQRSTUVWXYZ23456789`) y se reintenta hasta encontrar uno no usado. Las columnas de ID, fecha y hora se formatean como texto (`@`) para que Sheets no las reinterprete como números o fechas.
 
@@ -130,6 +130,7 @@ Si un segundo usuario intenta el mismo slot, entra al lock después y encuentra 
 | `MedicalAgendaService.gs` | Reconstrucción de la agenda del médico |
 | `Tests.gs` | `runValidationTests()` con aserciones básicas |
 | `Api.gs` | API JSON que consume el portal estático |
+| `Bootstrap.gs` | `crearCampanaMedica()`: crea un Spreadsheet nuevo y lo deja listo |
 | `docs/index.html` | Portal público de una sola página para GitHub Pages |
 | `docs/config.js` | URL de la implementación de Apps Script que usa el portal |
 | `Index.html` / `Styles.html` / `Scripts.html` | Interfaz de 4 pasos, estilos y lógica de cliente |
@@ -336,4 +337,73 @@ Cada cambio en el código de Apps Script exige **crear una nueva versión de la 
 - El Spreadsheet **sigue siendo privado**. El portal nunca lo toca directamente: solo llama a las funciones públicas de Apps Script.
 - El portal no consulta DNI contra el padrón de `PERSONAS` para autocompletar nombres. Es deliberado: un endpoint público de búsqueda por DNI permitiría enumerar documentos y obtener nombres.
 - La página lleva `<meta name="robots" content="noindex">` para que no aparezca en buscadores.
+
+---
+
+## 4. Campaña nueva desde cero
+
+### Un solo paso: `crearCampanaMedica()`
+
+`Bootstrap.gs` crea una campaña completa sin reutilizar nada anterior. Ejecuta la función **una vez** desde el editor de Apps Script y hace todo esto:
+
+1. Crea un **Spreadsheet nuevo** en tu Drive (`SpreadsheetApp.create`), con nombre `Campaña de Salud - Reservas <fecha inicio> a <fecha fin>`.
+2. Apunta el script a ese archivo guardando su ID en `SPREADSHEET_ID`.
+3. Levanta las 7 hojas con sus cabeceras y formatos, y borra la hoja vacía por defecto.
+4. Crea la campaña activa y genera los horarios **de una hora**.
+
+No toca la hoja anterior: el `SPREADSHEET_ID` previo se reemplaza, pero el archivo viejo sigue intacto en tu Drive.
+
+```javascript
+crearCampanaMedica();                                         // 5 días desde mañana, 08:00–17:00
+crearCampanaMedica({ dias: 3, horaInicio: '09:00', horaFin: '13:00' });
+crearCampanaMedica({ fechas: ['2026-09-10', '2026-09-11'] }); // fechas exactas
+```
+
+| Opción | Por defecto | Qué hace |
+|---|---|---|
+| `dias` | `5` | Días **corridos** a partir de mañana |
+| `desde` | mañana | Primer día, en formato `YYYY-MM-DD` |
+| `fechas` | — | Lista exacta de días; ignora `dias` y `desde` |
+| `horaInicio` / `horaFin` | `08:00` / `17:00` | Rango de atención de cada día |
+| `duracionMinutos` | `60` | Duración de cada cita |
+| `capacidad` | `1` | Personas por horario |
+| `nombre` / `descripcion` | `Campaña de Salud` | Texto visible de la campaña |
+
+Devuelve el `spreadsheetId`, la URL del archivo, el `campaignId`, las fechas y cuántos horarios creó.
+
+### Privacidad de la hoja
+
+Un Spreadsheet creado por el script queda como **archivo privado del dueño de la cuenta**: nadie más puede abrirlo mientras no lo compartas. El portal nunca lo lee directamente; solo llama a las funciones de Apps Script, que corren con los permisos del dueño.
+
+El script **no pide permisos de Drive a propósito**. Podría forzar `setSharing(PRIVATE)`, pero eso obligaría a conceder el alcance completo de Drive a un proyecto que además expone un endpoint público y anónimo: más superficie de riesgo a cambio de reafirmar algo que ya es cierto por defecto. Abre el archivo una vez y confirma en **Compartir** que solo apareces tú.
+
+### Separación de al menos una hora
+
+`DURACION_MINIMA` (por defecto `60`) se valida en `generateSlots()`. Intentar generar horarios más cortos falla con `VALIDATION_ERROR` y el mensaje "Cada cita debe ocupar al menos 60 minutos". Como los horarios se generan consecutivos desde `horaInicio`, el resultado es `08:00, 09:00, 10:00…`: **dos citas nunca quedan a menos de una hora**. Si algún día necesitas otro espaciado, cambia esa clave en la hoja `CONFIG`; es el único lugar.
+
+### Hora de registro
+
+`RESERVAS.created_at` guarda el instante exacto de cada registro, y `AGENDA_MEDICO` lo expone en la columna **`registrado_at`**, junto a fecha, hora, DNI, nombres, apellidos, área, estado y código. Ejecuta `buildMedicalAgenda()` para reconstruir esa vista cuando quieras el control al día.
+
+### Rendimiento
+
+Cada llamada a `SpreadsheetApp` cuesta cientos de milisegundos, y una reserva necesita consultar `CAMPANAS`, `HORARIOS`, `PERSONAS` y `RESERVAS`. La versión anterior releía la hoja completa en cada búsqueda: `createReservationCode_()`, por ejemplo, hacía una lectura completa de `RESERVAS` **por cada intento** de generar un código.
+
+`Spreadsheet.gs` ahora memoriza durante la ejecución el Spreadsheet, cada hoja y cada tabla leída, más un índice por campo para las búsquedas, y lo invalida en cuanto se escribe. Medido sobre una reserva completa con el backend real corriendo contra una hoja simulada:
+
+| Llamadas a la API de Sheets | Antes | Ahora |
+|---|---|---|
+| `openById` | 12 | 0 |
+| `getSheetByName` | 12 | 3 |
+| `getRange` | 9 | 7 |
+| `getLastRow` | 14 | 9 |
+| **Total** | **47** | **19** |
+
+La diferencia crece con el volumen: la caché evita releer tablas que solo aumentan de tamaño conforme entran reservas.
+
+**La caché no debilita el control de conflictos.** Vive solo dentro de una ejecución, no entre peticiones, y `createReservation()` la vacía justo después de tomar el bloqueo: todo lo que lee dentro del lock viene del Spreadsheet real.
+
+### Verificar una cita desde el portal
+
+El portal incluye un bloque plegable **"¿Ya reservaste? Consulta o verifica tu cita"**: con el código y el DNI muestra nombre, fecha, hora y estado. Va por `POST` con la acción `status`, así que el DNI no viaja en la URL. Pide ambos datos a la vez: el código por sí solo no sirve para consultar una cita ajena.
 

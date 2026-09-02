@@ -4,6 +4,7 @@ function createReservation(payload) {
     const lock = LockService.getScriptLock();
     if (!lock.tryLock(10000)) throwAppError_('SYSTEM_BUSY', 'No se pudo obtener el bloqueo.');
     try {
+      clearRowsCache_();
       const campaign = requireActiveCampaign_(input.campaignId);
       const slot = getSlotById_(input.slotId);
       if (!slot) throwAppError_('SLOT_NOT_FOUND', 'No existe el horario.');
@@ -63,6 +64,7 @@ function cancelReservation(reservationCode, dni) {
     const lock = LockService.getScriptLock();
     if (!lock.tryLock(10000)) throwAppError_('SYSTEM_BUSY', 'No se pudo obtener el bloqueo.');
     try {
+      clearRowsCache_();
       const reservation = readRows_(SHEET_NAMES_.RESERVATIONS).rows.find(function (row) {
         return String(row.reservation_code).toUpperCase() === code && String(row.dni) === normalizedDni;
       });
@@ -101,8 +103,9 @@ function validateReservationPayload_(payload) {
 }
 
 function findActiveReservation_(dni, campaignId) {
-  return readRows_(SHEET_NAMES_.RESERVATIONS).rows.find(function (reservation) {
-    return String(reservation.dni) === String(dni) && String(reservation.campaign_id) === String(campaignId) && String(reservation.estado) === 'RESERVADO';
+  const byDni = indexRowsBy_(SHEET_NAMES_.RESERVATIONS, 'dni')[String(dni)] || [];
+  return byDni.find(function (reservation) {
+    return String(reservation.campaign_id) === String(campaignId) && String(reservation.estado) === 'RESERVADO';
   }) || null;
 }
 

@@ -38,7 +38,6 @@ function apiBootstrap_(campaignId) {
     return {
       success: true,
       app: {
-        company: getConfigValue_('EMPRESA') || 'Campaña de Salud',
         title: getConfigValue_('TITULO_APP') || 'Reserva tu cita',
         timeZone: getTimeZone_()
       },

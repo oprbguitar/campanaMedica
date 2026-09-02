@@ -15,13 +15,13 @@ const SHEET_HEADERS_ = Object.freeze({
   PERSONAS: ['person_id', 'dni', 'nombres', 'apellidos', 'telefono', 'area', 'correo', 'created_at', 'updated_at'],
   RESERVAS: ['reservation_id', 'reservation_code', 'campaign_id', 'slot_id', 'person_id', 'dni', 'fecha', 'hora', 'estado', 'created_at', 'updated_at'],
   AUDITORIA: ['timestamp', 'accion', 'reservation_id', 'dni', 'detalle'],
-  AGENDA_MEDICO: ['fecha', 'hora', 'DNI', 'nombres', 'apellidos', 'area', 'estado', 'reservation_code']
+  AGENDA_MEDICO: ['fecha', 'hora', 'DNI', 'nombres', 'apellidos', 'area', 'estado', 'reservation_code', 'registrado_at']
 });
 
 const DEFAULT_CONFIG_ = Object.freeze({
-  EMPRESA: 'Campaña de Salud',
   TITULO_APP: 'Reserva tu cita',
   DURACION_SLOT: '60',
+  DURACION_MINIMA: '60',
   ZONA_HORARIA: 'America/Lima',
   RESERVAS_POR_PERSONA: '1'
 });
@@ -31,8 +31,18 @@ function getConfigValue_(key) {
   return config[key] || DEFAULT_CONFIG_[key] || '';
 }
 
+/**
+ * Devuelve {} si todavía no hay Spreadsheet configurado, para que las
+ * utilidades de fecha y zona horaria sigan funcionando con sus valores por
+ * defecto durante el arranque (crearCampanaMedica) y en pantallas de error.
+ */
 function getConfigMap_() {
-  const rows = readRows_(SHEET_NAMES_.CONFIG).rows;
+  let rows;
+  try {
+    rows = readRows_(SHEET_NAMES_.CONFIG).rows;
+  } catch (error) {
+    return {};
+  }
   return rows.reduce(function (result, row) {
     const key = String(row.CLAVE || '').trim();
     if (key) {

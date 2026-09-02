@@ -238,6 +238,6 @@
     $('#confirm-reservation').addEventListener('click', confirmReservation);
     $('#new-reservation').addEventListener('click', resetForm);
     $('#dni').addEventListener('input', () => { $('#dni').value = $('#dni').value.replace(/\D/g, '').slice(0, 8); });
-    try { const config = handleResponse(await runServer('getAppConfig')); $('#company-name').textContent = config.app.company || 'Campaña de Salud'; $('#app-title').textContent = config.app.title || 'Reserva tu cita'; } catch (error) { showAlert(error.message); }
+    try { const config = handleResponse(await runServer('getAppConfig')); $('#app-title').textContent = config.app.title || 'Reserva tu cita'; } catch (error) { showAlert(error.message); }
   });
 </script>

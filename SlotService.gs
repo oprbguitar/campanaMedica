@@ -7,6 +7,10 @@ function generateSlots(config) {
     const start = validateTime_(input.start);
     const end = validateTime_(input.end);
     const durationMinutes = positiveInteger_(input.durationMinutes || getConfigValue_('DURACION_SLOT'), 'La duración');
+    const minimumMinutes = positiveInteger_(getConfigValue_('DURACION_MINIMA') || 60, 'La duración mínima');
+    if (durationMinutes < minimumMinutes) {
+      throwAppError_('VALIDATION_ERROR', 'Cada cita debe ocupar al menos ' + minimumMinutes + ' minutos.');
+    }
     const capacity = positiveInteger_(input.capacity, 'La capacidad');
     const campaign = getCampaignById_(campaignId);
     if (!campaign) throwAppError_('CAMPAIGN_NOT_FOUND', 'No existe la campaña.');
@@ -20,6 +24,7 @@ function generateSlots(config) {
     const lock = LockService.getScriptLock();
     if (!lock.tryLock(10000)) throwAppError_('SYSTEM_BUSY', 'No se pudo obtener el bloqueo.');
     try {
+      clearRowsCache_();
       const existing = readRows_(SHEET_NAMES_.SLOTS).rows;
       const keys = existing.reduce(function (result, slot) {
         result[slotKey_(slot.campaign_id, slot.fecha, slot.inicio)] = true;

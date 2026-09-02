@@ -8,7 +8,7 @@ function lookupPersonByDni(dni) {
 }
 
 function findPersonByDni_(dni) {
-  return readRows_(SHEET_NAMES_.PEOPLE).rows.find(function (person) { return String(person.dni) === String(dni); }) || null;
+  return findRowByField_(SHEET_NAMES_.PEOPLE, 'dni', dni);
 }
 
 function findOrCreatePerson_(payload, timestamp) {

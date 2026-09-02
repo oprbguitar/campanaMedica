@@ -9,7 +9,7 @@ function buildMedicalAgenda() {
       .filter(function (reservation) { return String(reservation.estado) !== 'CANCELADO'; })
       .map(function (reservation) {
         const person = people[reservation.person_id] || {};
-        return [reservation.fecha, reservation.hora, reservation.dni, person.nombres || '', person.apellidos || '', person.area || '', reservation.estado, reservation.reservation_code];
+        return [reservation.fecha, reservation.hora, reservation.dni, person.nombres || '', person.apellidos || '', person.area || '', reservation.estado, reservation.reservation_code, reservation.created_at || ''];
       })
       .sort(function (left, right) { return (left[0] + left[1]).localeCompare(right[0] + right[1]); });
     const sheet = getSheet_(SHEET_NAMES_.MEDICAL_AGENDA);
