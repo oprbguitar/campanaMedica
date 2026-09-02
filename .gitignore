@@ -1,0 +1,10 @@
+# Credenciales locales de clasp (contiene el scriptId del proyecto)
+.clasp.json
+
+# Dependencias
+node_modules/
+artifact-build/node_modules
+
+# Sistema
+.DS_Store
+Thumbs.db

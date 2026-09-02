@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0b6b61">
+    <?!= include_('Styles'); ?>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div class="brand-mark" aria-hidden="true">+</div>
+        <div>
+          <p id="company-name" class="eyebrow">Campaña de Salud</p>
+          <h1 id="app-title">Reserva tu cita</h1>
+        </div>
+      </header>
+
+      <section class="progress" aria-label="Progreso de la reserva">
+        <span class="progress-step is-active" data-step-indicator="1">1</span><span class="progress-line"></span>
+        <span class="progress-step" data-step-indicator="2">2</span><span class="progress-line"></span>
+        <span class="progress-step" data-step-indicator="3">3</span><span class="progress-line"></span>
+        <span class="progress-step" data-step-indicator="4">4</span>
+      </section>
+
+      <div id="alert" class="alert" role="alert" hidden></div>
+      <div id="loading" class="loading" role="status" hidden><span class="spinner"></span><span id="loading-text">Cargando...</span></div>
+
+      <section id="step-1" class="card step" data-step="1">
+        <p class="step-kicker">Paso 1 de 4</p>
+        <h2>Comencemos</h2>
+        <p class="muted">Ingresa tu DNI para reservar una cita.</p>
+        <label for="dni">DNI</label>
+        <input id="dni" name="dni" inputmode="numeric" autocomplete="off" maxlength="8" pattern="[0-9]{8}" placeholder="Ej. 12345678">
+        <button id="continue-dni" class="button button-primary" type="button">CONTINUAR</button>
+      </section>
+
+      <section id="step-2" class="card step" data-step="2" hidden>
+        <p class="step-kicker">Paso 2 de 4</p>
+        <h2>Tus datos</h2>
+        <p id="person-note" class="muted">Confirma tus nombres y apellidos.</p>
+        <label for="nombres">Nombres</label>
+        <input id="nombres" autocomplete="given-name" maxlength="120">
+        <label for="apellidos">Apellidos</label>
+        <input id="apellidos" autocomplete="family-name" maxlength="160">
+        <div class="two-fields">
+          <div><label for="telefono">Teléfono <span>(opcional)</span></label><input id="telefono" inputmode="tel" autocomplete="tel" maxlength="30"></div>
+          <div><label for="area">Área <span>(opcional)</span></label><input id="area" maxlength="120"></div>
+        </div>
+        <button id="continue-person" class="button button-primary" type="button">CONTINUAR</button>
+      </section>
+
+      <section id="step-3" class="card step" data-step="3" hidden>
+        <p class="step-kicker">Paso 3 de 4</p>
+        <h2>Elige tu horario</h2>
+        <label for="campaign">Campaña de Salud</label>
+        <select id="campaign"></select>
+        <label for="date">Fecha</label>
+        <select id="date" disabled><option value="">Selecciona una fecha</option></select>
+        <div id="slots" class="slot-list" aria-live="polite"></div>
+        <button id="confirm-reservation" class="button button-primary" type="button" disabled>CONFIRMAR CITA</button>
+      </section>
+
+      <section id="step-4" class="card step confirmation" data-step="4" hidden>
+        <div class="success-icon" aria-hidden="true">✓</div>
+        <p class="step-kicker">Reserva confirmada</p>
+        <h2>¡Listo!</h2>
+        <p class="muted">Guarda este código para consultar tu reserva.</p>
+        <div class="confirmation-box">
+          <p><span>Nombre</span><strong id="confirmation-name"></strong></p>
+          <p><span>Fecha</span><strong id="confirmation-date"></strong></p>
+          <p><span>Hora</span><strong id="confirmation-time"></strong></p>
+          <p><span>Código de reserva</span><strong id="confirmation-code" class="reservation-code"></strong></p>
+        </div>
+        <button id="new-reservation" class="button button-secondary" type="button">NUEVA RESERVA</button>
+      </section>
+    </main>
+    <?!= include_('Scripts'); ?>
+  </body>
+</html>

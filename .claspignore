@@ -1,0 +1,5 @@
+.clasp.json
+README.md
+tests/
+node_modules/
+.git/

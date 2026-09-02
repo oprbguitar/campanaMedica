@@ -1,0 +1,15 @@
+{"kind":"workbook","id":"wb/nl1ucy","sheets":7}
+{"kind":"sheet","id":"ws/cb1vc8","name":"CONFIG","index":0,"range":"A1:B6","address":"A1:B6"}
+{"kind":"region","sheet":"CONFIG","address":"A1:B6","rows":6,"cols":2,"nonEmpty":12,"text":12,"maxTextLength":20,"preview":[["CLAVE","VALOR"],["EMPRESA","Campaña de Salud"],["TITULO_APP","Reserva tu cita"],["DURACION_SLOT","15"],["ZONA_HORARIA","America/Lima"],["RESERVAS_POR_PERSONA","1"]],"previewAddress":"A1:B6","previewRows":6,"previewCols":2}
+{"kind":"sheet","id":"ws/6wc7vn","name":"CAMPANAS","index":1,"range":"A1:H1","address":"A1:H1"}
+{"kind":"region","sheet":"CAMPANAS","address":"A1:H1","rows":1,"cols":8,"nonEmpty":8,"text":8,"maxTextLength":12,"preview":[["campaign_id","nombre","descripcion","fecha_inicio","fecha_fin","activo","created_at","updated_at"]],"previewAddress":"A1:H1","previewRows":1,"previewCols":8}
+{"kind":"sheet","id":"ws/q03cjh","name":"HORARIOS","index":2,"range":"A1:J1","address":"A1:J1"}
+{"kind":"region","sheet":"HORARIOS","address":"A1:J1","rows":1,"cols":10,"nonEmpty":10,"text":10,"maxTextLength":11,"preview":[["slot_id","campaign_id","fecha","inicio","fin","capacidad","ocupados","estado","created_at","updated_at"]],"previewAddress":"A1:J1","previewRows":1,"previewCols":10}
+{"kind":"sheet","id":"ws/38bxm5","name":"PERSONAS","index":3,"range":"A1:I1","address":"A1:I1"}
+{"kind":"region","sheet":"PERSONAS","address":"A1:I1","rows":1,"cols":9,"nonEmpty":9,"text":9,"maxTextLength":10,"preview":[["person_id","dni","nombres","apellidos","telefono","area","correo","created_at","updated_at"]],"previewAddress":"A1:I1","previewRows":1,"previewCols":9}
+{"kind":"sheet","id":"ws/l60lo0","name":"RESERVAS","index":4,"range":"A1:K1","address":"A1:K1"}
+{"kind":"region","sheet":"RESERVAS","address":"A1:K1","rows":1,"cols":11,"nonEmpty":11,"text":11,"maxTextLength":16,"preview":[["reservation_id","reservation_code","campaign_id","slot_id","person_id","dni","fecha","hora","estado","created_at","updated_at"]],"previewAddress":"A1:K1","previewRows":1,"previewCols":11}
+{"kind":"sheet","id":"ws/alsjde","name":"AUDITORIA","index":5,"range":"A1:E1","address":"A1:E1"}
+{"kind":"region","sheet":"AUDITORIA","address":"A1:E1","rows":1,"cols":5,"nonEmpty":5,"text":5,"maxTextLength":14,"preview":[["timestamp","accion","reservation_id","dni","detalle"]],"previewAddress":"A1:E1","previewRows":1,"previewCols":5}
+{"kind":"sheet","id":"ws/0pmjrd","name":"AGENDA_MEDICO","index":6,"range":"A1:H1","address":"A1:H1"}
+{"kind":"region","sheet":"AGENDA_MEDICO","address":"A1:H1","rows":1,"cols":8,"nonEmpty":8,"text":8,"maxTextLength":16,"preview":[["fecha","hora","DNI","nombres","apellidos","area","estado","reservation_code"]],"previewAddress":"A1:H1","previewRows":1,"previewCols":8}

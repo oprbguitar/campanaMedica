@@ -1,0 +1,184 @@
+<script>
+  const state = { step: 1, campaigns: [], dates: [], selectedSlot: null, loading: false };
+  const $ = (selector) => document.querySelector(selector);
+
+  function runServer(functionName, ...args) {
+    return new Promise((resolve, reject) => {
+      const allowedFunctions = new Set([
+        'getAppConfig',
+        'getActiveCampaigns',
+        'getCampaignDates',
+        'getAvailableSlots',
+        'lookupPersonByDni',
+        'createReservation',
+        'getReservation',
+        'cancelReservation'
+      ]);
+      if (!allowedFunctions.has(functionName)) {
+        reject(new Error('Operación no disponible.'));
+        return;
+      }
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .runServerFunction(functionName, args);
+    });
+  }
+
+  function showAlert(message, type = 'error') {
+    const alert = $('#alert');
+    alert.textContent = message;
+    alert.className = `alert ${type}`;
+    alert.hidden = !message;
+  }
+
+  function setLoading(isLoading, message = 'Cargando...') {
+    state.loading = isLoading;
+    $('#loading-text').textContent = message;
+    $('#loading').hidden = !isLoading;
+    document.querySelectorAll('button').forEach((element) => { element.disabled = isLoading; });
+  }
+
+  function handleResponse(response) {
+    if (!response || response.success !== true) {
+      const error = new Error(response?.message || 'No pudimos completar la operación.');
+      error.code = response?.code || 'INTERNAL_ERROR';
+      error.response = response;
+      throw error;
+    }
+    return response;
+  }
+
+  function showStep(step) {
+    state.step = step;
+    document.querySelectorAll('.step').forEach((section) => { section.hidden = Number(section.dataset.step) !== step; });
+    document.querySelectorAll('[data-step-indicator]').forEach((indicator) => {
+      const indicatorStep = Number(indicator.dataset.stepIndicator);
+      indicator.classList.toggle('is-active', indicatorStep === step);
+      indicator.classList.toggle('is-done', indicatorStep < step);
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function loadCampaigns() {
+    setLoading(true, 'Consultando campañas...');
+    try {
+      const response = handleResponse(await runServer('getActiveCampaigns'));
+      state.campaigns = response.campaigns || [];
+      const select = $('#campaign');
+      select.innerHTML = '<option value="">Selecciona una campaña</option>';
+      state.campaigns.forEach((campaign) => {
+        const option = document.createElement('option');
+        option.value = campaign.campaignId;
+        option.textContent = campaign.name;
+        select.appendChild(option);
+      });
+      if (!state.campaigns.length) showAlert('No hay campañas activas en este momento.', 'warning');
+    } catch (error) { showAlert(error.message); }
+    finally { setLoading(false); }
+  }
+
+  async function lookupDni() {
+    const dni = $('#dni').value.trim();
+    if (!/^\d{8}$/.test(dni)) { showAlert('El DNI debe tener exactamente 8 dígitos.'); return; }
+    setLoading(true, 'Consultando tus datos...');
+    showAlert('');
+    try {
+      const response = handleResponse(await runServer('lookupPersonByDni', dni));
+      $('#person-note').textContent = response.found ? 'Encontramos tus datos. Confírmalos antes de continuar.' : 'Completa tus nombres y apellidos para continuar.';
+      if (response.found) { $('#nombres').value = response.person.nombres || ''; $('#apellidos').value = response.person.apellidos || ''; }
+      showStep(2);
+      $('#nombres').focus();
+    } catch (error) { showAlert(error.message); }
+    finally { setLoading(false); }
+  }
+
+  async function loadDates() {
+    state.selectedSlot = null;
+    $('#confirm-reservation').disabled = true;
+    const campaignId = $('#campaign').value;
+    $('#date').innerHTML = '<option value="">Consultando fechas...</option>';
+    $('#date').disabled = true;
+    $('#slots').innerHTML = '';
+    if (!campaignId) { $('#date').innerHTML = '<option value="">Selecciona una fecha</option>'; return; }
+    setLoading(true, 'Consultando fechas...');
+    try {
+      const response = handleResponse(await runServer('getCampaignDates', campaignId));
+      state.dates = response.dates || [];
+      $('#date').innerHTML = '<option value="">Selecciona una fecha</option>';
+      state.dates.forEach((date) => { const option = document.createElement('option'); option.value = date; option.textContent = formatDate(date); $('#date').appendChild(option); });
+      $('#date').disabled = false;
+      if (!state.dates.length) $('#slots').innerHTML = '<p class="empty">No quedan fechas disponibles para esta campaña.</p>';
+    } catch (error) { showAlert(error.message); }
+    finally { setLoading(false); }
+  }
+
+  async function loadSlots() {
+    state.selectedSlot = null;
+    $('#confirm-reservation').disabled = true;
+    const campaignId = $('#campaign').value;
+    const date = $('#date').value;
+    $('#slots').innerHTML = '';
+    if (!campaignId || !date) return;
+    setLoading(true, 'Consultando horarios...');
+    try {
+      const response = handleResponse(await runServer('getAvailableSlots', campaignId, date));
+      const slots = response.slots || [];
+      if (!slots.length) { $('#slots').innerHTML = '<p class="empty">No quedan horarios disponibles para esta fecha.</p>'; return; }
+      slots.forEach((slot) => {
+        const button = document.createElement('button');
+        button.type = 'button'; button.className = 'slot-button'; button.textContent = `${slot.start} - ${slot.end}`;
+        button.addEventListener('click', () => { document.querySelectorAll('.slot-button').forEach((item) => item.classList.remove('is-selected')); button.classList.add('is-selected'); state.selectedSlot = slot; $('#confirm-reservation').disabled = false; });
+        $('#slots').appendChild(button);
+      });
+    } catch (error) { showAlert(error.message); }
+    finally { setLoading(false); }
+  }
+
+  async function confirmReservation() {
+    if (!state.selectedSlot) { showAlert('Selecciona un horario.'); return; }
+    setLoading(true, 'Confirmando tu cita...'); showAlert('');
+    const payload = { campaignId: $('#campaign').value, slotId: state.selectedSlot.slotId, dni: $('#dni').value.trim(), nombres: $('#nombres').value.trim(), apellidos: $('#apellidos').value.trim(), telefono: $('#telefono').value.trim(), area: $('#area').value.trim() };
+    try {
+      const response = handleResponse(await runServer('createReservation', payload));
+      renderConfirmation(response.reservation); showStep(4);
+    } catch (error) {
+      const knownConcurrency = error.code === 'HORARIO_OCUPADO';
+      showAlert(error.message, knownConcurrency ? 'warning' : 'error');
+      if (knownConcurrency) await loadSlots();
+    } finally { setLoading(false); }
+  }
+
+  function renderConfirmation(reservation) {
+    $('#confirmation-name').textContent = reservation.name;
+    $('#confirmation-date').textContent = formatDate(reservation.date);
+    $('#confirmation-time').textContent = reservation.time;
+    $('#confirmation-code').textContent = reservation.reservationCode;
+  }
+
+  function formatDate(dateText) {
+    const [year, month, day] = dateText.split('-');
+    return `${day}/${month}/${year}`;
+  }
+
+  function validatePersonStep() {
+    if (!$('#nombres').value.trim() || !$('#apellidos').value.trim()) { showAlert('Ingresa nombres y apellidos para continuar.'); return false; }
+    return true;
+  }
+
+  function resetForm() {
+    ['dni', 'nombres', 'apellidos', 'telefono', 'area'].forEach((id) => { $(`#${id}`).value = ''; });
+    $('#date').innerHTML = '<option value="">Selecciona una fecha</option>'; $('#date').disabled = true; $('#slots').innerHTML = ''; $('#confirm-reservation').disabled = true; state.selectedSlot = null; showAlert(''); showStep(1); $('#dni').focus();
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    $('#continue-dni').addEventListener('click', lookupDni);
+    $('#continue-person').addEventListener('click', () => { if (validatePersonStep()) { showAlert(''); showStep(3); loadCampaigns(); } });
+    $('#campaign').addEventListener('change', loadDates);
+    $('#date').addEventListener('change', loadSlots);
+    $('#confirm-reservation').addEventListener('click', confirmReservation);
+    $('#new-reservation').addEventListener('click', resetForm);
+    $('#dni').addEventListener('input', () => { $('#dni').value = $('#dni').value.replace(/\D/g, '').slice(0, 8); });
+    try { const config = handleResponse(await runServer('getAppConfig')); $('#company-name').textContent = config.app.company || 'Campaña de Salud'; $('#app-title').textContent = config.app.title || 'Reserva tu cita'; } catch (error) { showAlert(error.message); }
+  });
+</script>
