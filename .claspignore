@@ -1,5 +1,16 @@
+# Todo lo que NO debe subir a Apps Script.
+# clasp sube únicamente los .gs, los .html y appsscript.json de la raíz.
+
 .clasp.json
+.clasp.json.example
+.claspignore
+.gitignore
 README.md
-tests/
-node_modules/
-.git/
+docs/**
+outputs/**
+artifact-build/**
+tests/**
+node_modules/**
+.git/**
+.github/**
+.claude/**
