@@ -12,11 +12,16 @@
  *   crearCampanaMedica({ dias: 3, horaInicio: '09:00', horaFin: '13:00' });
  *   crearCampanaMedica({ fechas: ['2026-09-10', '2026-09-11'] });
  *
+ * Ubicación: el archivo se crea en la MISMA carpeta de Drive donde vive este
+ * proyecto de Apps Script, así que queda junto al script y no suelto en "Mi
+ * unidad". No hace falta configurar el ID de la carpeta: se deduce del propio
+ * proyecto. Puedes forzar otra con { carpetaId: '...' }.
+ *
  * Privacidad: un Spreadsheet creado por el script queda como archivo privado
  * del dueño de la cuenta; nadie más puede abrirlo mientras no lo compartas.
- * El script no pide permisos de Drive a propósito, para no ampliar los
- * alcances de un proyecto que además expone un endpoint público. Verifica el
- * botón "Compartir" del archivo una vez y no lo compartas con nadie.
+ * Moverlo a una carpeta obliga a conceder permiso de Drive al proyecto; el
+ * archivo hereda los permisos de la carpeta, así que mantén esa carpeta sin
+ * compartir. Verifica el botón "Compartir" del archivo una vez.
  */
 
 const BOOTSTRAP_DEFAULTS_ = Object.freeze({
@@ -39,6 +44,7 @@ function crearCampanaMedica(options) {
     const spreadsheet = SpreadsheetApp.create(buildSpreadsheetName_(dates));
     PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', spreadsheet.getId());
     clearSpreadsheetCache_();
+    const folder = moveToProjectFolder_(spreadsheet.getId(), input.carpetaId);
 
     const structure = setupSystem();
     if (!structure.success) return structure;
@@ -76,12 +82,40 @@ function crearCampanaMedica(options) {
       success: true,
       spreadsheetId: spreadsheet.getId(),
       spreadsheetUrl: spreadsheet.getUrl(),
+      carpeta: folder ? folder.nombre : 'Mi unidad (no se pudo mover a una carpeta)',
+      carpetaId: folder ? folder.id : '',
       campaignId: campaignId,
       fechas: dates,
       horariosCreados: created,
       siguientePaso: 'Despliega la aplicación web y pega su URL /exec en docs/config.js.'
     };
   });
+}
+
+/**
+ * Mueve el Spreadsheet recién creado a la carpeta indicada. Si no se indica
+ * ninguna, usa la carpeta que contiene a este propio proyecto de Apps Script,
+ * de modo que la hoja quede junto al script sin configurar nada.
+ * Si el movimiento falla, el archivo se queda en "Mi unidad" y la campaña
+ * sigue creándose: no vale la pena abortar el arranque por la ubicación.
+ */
+function moveToProjectFolder_(spreadsheetId, carpetaId) {
+  try {
+    const requested = String(carpetaId == null ? '' : carpetaId).trim();
+    let folder = null;
+    if (requested) {
+      folder = DriveApp.getFolderById(requested);
+    } else {
+      const parents = DriveApp.getFileById(ScriptApp.getScriptId()).getParents();
+      if (parents.hasNext()) folder = parents.next();
+    }
+    if (!folder) return null;
+    DriveApp.getFileById(spreadsheetId).moveTo(folder);
+    return { id: folder.getId(), nombre: folder.getName() };
+  } catch (error) {
+    console.error(JSON.stringify({ code: 'DRIVE_MOVE_FAILED', message: error && error.message }));
+    return null;
+  }
 }
 
 function resolveCampaignDates_(input) {

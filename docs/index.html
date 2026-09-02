@@ -296,8 +296,13 @@
   }
 
   function request(url, options) {
-    return fetch(url, options).then(function (response) {
-      if (!response.ok) throw buildError('NETWORK_ERROR', 'No pudimos conectar con el servidor. Revisa tu conexión.');
+    // Un fallo de red aquí casi siempre significa que Apps Script devolvió su
+    // página de error (sin cabeceras CORS) en vez de JSON: script todavía sin
+    // autorizar, o implementación que no permite "Cualquier usuario".
+    return fetch(url, options).catch(function () {
+      throw buildError('NETWORK_ERROR', 'No pudimos conectar con el servidor de reservas. Si acabas de publicarlo, revisa que el script esté autorizado y que la implementación permita el acceso a "Cualquier usuario".');
+    }).then(function (response) {
+      if (!response.ok) throw buildError('NETWORK_ERROR', 'El servidor de reservas respondió con un error (' + response.status + '). Vuelve a intentarlo en un momento.');
       return response.text();
     }).then(function (text) {
       var data;

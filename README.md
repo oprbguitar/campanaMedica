@@ -371,11 +371,21 @@ crearCampanaMedica({ fechas: ['2026-09-10', '2026-09-11'] }); // fechas exactas
 
 Devuelve el `spreadsheetId`, la URL del archivo, el `campaignId`, las fechas y cuántos horarios creó.
 
+### Dónde queda el archivo
+
+La hoja se crea en la **misma carpeta de Drive donde vive el proyecto de Apps Script**, para que quede junto al script y no suelta en "Mi unidad". La carpeta no se configura en ningún sitio: `moveToProjectFolder_()` la deduce del propio proyecto con `ScriptApp.getScriptId()`. Así el repositorio público no contiene ningún identificador de tu Drive.
+
+Para forzar otra carpeta: `crearCampanaMedica({ carpetaId: 'ID_DE_LA_CARPETA' })`.
+
+Si el movimiento falla, la campaña **se crea igual** y el archivo se queda en "Mi unidad"; el resultado lo indica en el campo `carpeta`. No tiene sentido abortar el arranque completo por la ubicación de un archivo.
+
 ### Privacidad de la hoja
 
 Un Spreadsheet creado por el script queda como **archivo privado del dueño de la cuenta**: nadie más puede abrirlo mientras no lo compartas. El portal nunca lo lee directamente; solo llama a las funciones de Apps Script, que corren con los permisos del dueño.
 
-El script **no pide permisos de Drive a propósito**. Podría forzar `setSharing(PRIVATE)`, pero eso obligaría a conceder el alcance completo de Drive a un proyecto que además expone un endpoint público y anónimo: más superficie de riesgo a cambio de reafirmar algo que ya es cierto por defecto. Abre el archivo una vez y confirma en **Compartir** que solo apareces tú.
+Mover el archivo a una carpeta obliga a conceder a este proyecto el **permiso de Drive**, y el archivo **hereda los permisos de la carpeta destino**: mantén esa carpeta sin compartir. Abre el archivo una vez y confirma en **Compartir** que solo apareces tú.
+
+Ese permiso amplía lo que el proyecto puede hacer en tu Drive, y es un proyecto que además expone un endpoint público y anónimo. Es el precio de exigir una carpeta concreta; si prefieres reducirlo, quita la llamada a `moveToProjectFolder_()` y mueve el archivo a mano una sola vez.
 
 ### Separación de al menos una hora
 
