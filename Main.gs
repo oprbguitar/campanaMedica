@@ -1,4 +1,6 @@
-function doGet() {
+function doGet(e) {
+  const params = (e && e.parameter) || {};
+  if (params.action) return handleApiRequest_(params.action, params);
   const template = HtmlService.createTemplateFromFile('Index');
   let title = 'Campaña de Salud';
   try {
@@ -9,6 +11,22 @@ function doGet() {
   return template.evaluate()
     .setTitle(title)
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function doPost(e) {
+  const body = parseApiBody_(e);
+  return handleApiRequest_(body.action, body);
+}
+
+function parseApiBody_(e) {
+  try {
+    if (e && e.postData && e.postData.contents) {
+      return JSON.parse(e.postData.contents) || {};
+    }
+  } catch (error) {
+    console.error(JSON.stringify({ code: 'VALIDATION_ERROR', message: 'Cuerpo JSON inválido.' }));
+  }
+  return (e && e.parameter) || {};
 }
 
 function include_(filename) {
@@ -41,6 +59,8 @@ function runServerFunction(functionName, args) {
       return getAppConfig();
     case 'getActiveCampaigns':
       return getActiveCampaigns();
+    case 'getBookingCalendar':
+      return getBookingCalendar();
     case 'getCampaignDates':
       return getCampaignDates(values[0]);
     case 'getAvailableSlots':

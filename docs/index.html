@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="description" content="Reserva tu cita en la campaña de salud. Elige mes, día y hora disponibles.">
+<meta name="robots" content="noindex">
+<title>Reserva tu cita — Campaña de Salud</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230b6b61'/><path d='M13 7h6v6h6v6h-6v6h-6v-6H7v-6h6z' fill='%23fff'/></svg>">
+<style>
+  :root { color-scheme: light; --ink: #173b39; --muted: #607674; --primary: #0b6b61; --primary-dark: #075047; --surface: #ffffff; --background: #eef7f4; --line: #d5e4e0; --danger: #a53e3e; --warning: #805d18; --ok: #187243; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-width: 320px; background: linear-gradient(145deg, #e7f4f0 0%, #f7fbfa 65%); color: var(--ink); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-text-size-adjust: 100%; }
+  .app-shell { width: min(100% - 32px, 520px); margin: 0 auto; padding: 28px 0 44px; }
+
+  .app-header { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+  .brand-mark { flex: 0 0 auto; width: 46px; height: 46px; }
+  .eyebrow { margin: 0 0 3px; color: var(--primary); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  h1, h2 { margin: 0; letter-spacing: -.02em; }
+  h1 { font-size: clamp(20px, 5vw, 26px); }
+  h2 { font-size: 21px; }
+
+  .card { margin-bottom: 16px; border: 1px solid rgba(213, 228, 224, .9); border-radius: 22px; padding: 22px; background: rgba(255, 255, 255, .94); box-shadow: 0 14px 36px rgba(19, 65, 59, .08); }
+  .card-kicker { margin: 0 0 4px; color: var(--primary); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .muted { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+
+  label { display: block; margin: 16px 0 7px; font-size: 14px; font-weight: 750; }
+  label span { color: var(--muted); font-weight: 500; }
+  input { width: 100%; min-height: 48px; border: 1px solid #bcd1cc; border-radius: 12px; padding: 10px 13px; color: var(--ink); background: #fff; font: inherit; font-size: 16px; }
+  input:focus-visible { outline: 3px solid rgba(11, 107, 97, .18); border-color: var(--primary); }
+  input[aria-invalid="true"] { border-color: var(--danger); }
+  .two-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field-error { margin: 6px 0 0; color: var(--danger); font-size: 13px; font-weight: 650; }
+
+  details { margin-top: 18px; border-top: 1px dashed var(--line); padding-top: 6px; }
+  summary { padding: 10px 0; color: var(--primary); cursor: pointer; font-size: 14px; font-weight: 750; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "+ "; font-weight: 800; }
+  details[open] summary::before { content: "− "; }
+
+  .button { width: 100%; min-height: 50px; margin-top: 22px; border: 0; border-radius: 12px; padding: 12px 16px; cursor: pointer; font: inherit; font-size: 15px; font-weight: 800; letter-spacing: .03em; }
+  .button:disabled { cursor: not-allowed; opacity: .5; }
+  .button-primary { background: var(--primary); color: #fff; }
+  .button-primary:hover:not(:disabled) { background: var(--primary-dark); }
+  .button-secondary { border: 1px solid var(--primary); background: #fff; color: var(--primary); }
+
+  .calendar { margin-top: 16px; border: 1px solid var(--line); border-radius: 16px; padding: 14px; background: #fbfefd; }
+  .calendar-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+  .calendar-toolbar strong { display: inline-block; font-size: 16px; }
+  .calendar-toolbar strong::first-letter { text-transform: uppercase; }
+  .calendar-nav { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--primary); cursor: pointer; font-size: 22px; line-height: 1; }
+  .calendar-nav:disabled { cursor: not-allowed; opacity: .3; }
+  .calendar-weekdays, .calendar-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+  .calendar-weekdays { margin-bottom: 6px; color: var(--muted); font-size: 11px; font-weight: 800; text-align: center; text-transform: uppercase; }
+  .calendar-day, .calendar-empty { min-height: 40px; }
+  .calendar-day { border: 1px solid transparent; border-radius: 10px; background: transparent; color: #9aaead; font: inherit; font-size: 14px; font-weight: 700; }
+  .calendar-day:not(:disabled) { border-color: #bcd1cc; background: #fff; color: var(--ink); cursor: pointer; }
+  .calendar-day:not(:disabled):hover { border-color: var(--primary); background: #e4f4ef; }
+  .calendar-day.is-selected, .calendar-day.is-selected:not(:disabled):hover { border: 2px solid var(--primary); background: var(--primary); color: #fff; }
+  .calendar-day .dot { display: block; width: 4px; height: 4px; margin: 2px auto 0; border-radius: 50%; background: var(--primary); }
+  .calendar-day.is-selected .dot { background: #fff; }
+
+  .selected-date { margin: 16px 0 0; color: var(--primary-dark); font-size: 14px; font-weight: 750; }
+  .selected-date::first-letter { text-transform: uppercase; }
+  .slot-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; margin-top: 10px; }
+  .slot-button { min-height: 46px; border: 1px solid #bcd1cc; border-radius: 12px; background: #fff; color: var(--ink); cursor: pointer; font: inherit; font-size: 15px; font-weight: 700; }
+  .slot-button:hover { border-color: var(--primary); }
+  .slot-button.is-selected, .slot-button.is-selected:hover { border: 2px solid var(--primary); background: var(--primary); color: #fff; }
+  .empty { grid-column: 1 / -1; padding: 14px; border-radius: 12px; background: var(--background); color: var(--muted); font-size: 14px; text-align: center; }
+
+  .alert { margin: 0 0 14px; border-radius: 12px; padding: 12px 14px; font-size: 14px; line-height: 1.45; }
+  .alert.error { background: #fceaea; color: var(--danger); }
+  .alert.warning { background: #fff4d9; color: var(--warning); }
+  .alert.info { background: #e4f4ef; color: var(--primary-dark); }
+  .loading { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; color: var(--primary); font-size: 14px; font-weight: 650; }
+  .spinner { width: 18px; height: 18px; border: 3px solid #c6e1dc; border-top-color: var(--primary); border-radius: 50%; animation: spin .8s linear infinite; }
+
+  .success-icon { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 14px; border-radius: 50%; background: #dff4e9; color: var(--ok); font-size: 28px; font-weight: 800; }
+  .confirmation-box { margin-top: 20px; border-radius: 14px; background: var(--background); padding: 4px 16px; }
+  .confirmation-box p { display: flex; justify-content: space-between; gap: 16px; margin: 14px 0; font-size: 14px; }
+  .confirmation-box span { color: var(--muted); }
+  .confirmation-box strong { text-align: right; }
+  .reservation-code { color: var(--primary); font-size: 17px; letter-spacing: .08em; }
+
+  code { padding: 2px 6px; border-radius: 6px; background: var(--background); font-size: 13px; word-break: break-all; }
+  .app-footer { margin-top: 8px; color: var(--muted); font-size: 12px; text-align: center; line-height: 1.5; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (max-width: 390px) { .app-shell { width: min(100% - 22px, 520px); padding-top: 18px; } .card { padding: 18px; } .two-fields { grid-template-columns: 1fr; gap: 0; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; } }
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <header class="app-header">
+    <svg class="brand-mark" viewBox="0 0 48 48" role="img" aria-label="Campaña de salud">
+      <rect width="48" height="48" rx="14" fill="#0b6b61"/>
+      <path d="M20 11h8v9h9v8h-9v9h-8v-9h-9v-8h9z" fill="#fff"/>
+      <path d="M11 33h6l2.5-5 3 9 2.5-4h12" fill="none" stroke="#7fd8c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
+    </svg>
+    <div>
+      <p class="eyebrow" id="company-name">Campaña de Salud</p>
+      <h1 id="app-title">Reserva tu cita</h1>
+    </div>
+  </header>
+
+  <div id="alert" class="alert" role="alert" hidden></div>
+  <div id="loading" class="loading" role="status" hidden><span class="spinner"></span><span id="loading-text">Cargando...</span></div>
+
+  <section class="card" id="setup" hidden>
+    <p class="card-kicker">Configuración pendiente</p>
+    <h2>Falta enlazar el portal</h2>
+    <p class="muted">Edita <code>docs/config.js</code> y coloca en <code>apiUrl</code> la URL <code>/exec</code> de tu implementación de Apps Script. Sin eso el portal no puede leer horarios ni registrar reservas.</p>
+  </section>
+
+  <form class="card" id="booking" novalidate hidden>
+    <p class="card-kicker">Tus datos</p>
+    <h2 id="campaign-name">Registro</h2>
+    <p class="muted" id="campaign-description">Completa tus datos y elige un horario disponible.</p>
+
+    <div class="two-fields">
+      <div>
+        <label for="nombres">Nombres</label>
+        <input id="nombres" name="nombres" autocomplete="given-name" maxlength="120" required>
+      </div>
+      <div>
+        <label for="apellidos">Apellidos</label>
+        <input id="apellidos" name="apellidos" autocomplete="family-name" maxlength="160" required>
+      </div>
+    </div>
+
+    <label for="dni">DNI <span>(8 dígitos)</span></label>
+    <input id="dni" name="dni" inputmode="numeric" autocomplete="off" maxlength="8" pattern="[0-9]{8}" placeholder="Ej. 12345678" required>
+
+    <details>
+      <summary>Datos opcionales</summary>
+      <div class="two-fields">
+        <div>
+          <label for="telefono">Teléfono <span>(opcional)</span></label>
+          <input id="telefono" inputmode="tel" autocomplete="tel" maxlength="30">
+        </div>
+        <div>
+          <label for="area">Área <span>(opcional)</span></label>
+          <input id="area" maxlength="120">
+        </div>
+      </div>
+      <label for="correo">Correo <span>(opcional)</span></label>
+      <input id="correo" type="email" inputmode="email" autocomplete="email" maxlength="160">
+    </details>
+
+    <p class="card-kicker" style="margin-top:26px">Elige tu horario</p>
+
+    <div class="calendar">
+      <div class="calendar-toolbar">
+        <button class="calendar-nav" id="prev-month" type="button" aria-label="Mes anterior">‹</button>
+        <strong id="month-label" aria-live="polite">—</strong>
+        <button class="calendar-nav" id="next-month" type="button" aria-label="Mes siguiente">›</button>
+      </div>
+      <div class="calendar-weekdays" aria-hidden="true">
+        <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
+      </div>
+      <div class="calendar-days" id="calendar-days"></div>
+    </div>
+
+    <p class="selected-date" id="selected-date" hidden></p>
+    <div class="slot-list" id="slots" aria-live="polite"></div>
+
+    <button class="button button-primary" id="confirm" type="submit" disabled>CONFIRMAR CITA</button>
+  </form>
+
+  <section class="card" id="confirmation" hidden>
+    <div class="success-icon" aria-hidden="true">✓</div>
+    <p class="card-kicker">Cita registrada</p>
+    <h2>¡Listo!</h2>
+    <p class="muted">Guarda tu código de reserva y preséntalo el día de la cita.</p>
+    <div class="confirmation-box">
+      <p><span>Nombre</span><strong id="confirmation-name"></strong></p>
+      <p><span>Fecha</span><strong id="confirmation-date"></strong></p>
+      <p><span>Hora</span><strong id="confirmation-time"></strong></p>
+      <p><span>Código</span><strong id="confirmation-code" class="reservation-code"></strong></p>
+    </div>
+    <button class="button button-secondary" id="new-reservation" type="button">HACER OTRA RESERVA</button>
+  </section>
+
+  <p class="app-footer">Solo se registra tu cita. No se almacena información clínica.</p>
+</div>
+
+<script src="config.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var CONFIG = window.PORTAL_CONFIG || {};
+  var API_URL = String(CONFIG.apiUrl || '').trim();
+  var CAMPAIGN_ID = String(CONFIG.campaignId || '').trim();
+
+  var WEEKDAY_OFFSET = 6; // domingo=0 -> lunes primero
+  var $ = function (selector) { return document.querySelector(selector); };
+
+  var state = {
+    campaign: null,
+    byDate: {},
+    months: [],
+    monthIndex: 0,
+    selectedDate: '',
+    selectedSlot: null,
+    busy: false
+  };
+
+  /* ---------- utilidades de fecha (siempre en UTC para evitar desfases) ---------- */
+
+  function parseDate(text) {
+    var parts = String(text).split('-');
+    return { year: Number(parts[0]), month: Number(parts[1]), day: Number(parts[2]) };
+  }
+
+  function monthKey(text) { return String(text).slice(0, 7); }
+
+  function monthLabel(key) {
+    var parts = key.split('-');
+    var date = new Date(Date.UTC(Number(parts[0]), Number(parts[1]) - 1, 1));
+    return new Intl.DateTimeFormat('es-PE', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(date);
+  }
+
+  function longDateLabel(text) {
+    var parts = parseDate(text);
+    var date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+    return new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(date);
+  }
+
+  function daysInMonth(year, month) { return new Date(Date.UTC(year, month, 0)).getUTCDate(); }
+
+  function firstWeekday(year, month) { return (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + WEEKDAY_OFFSET) % 7; }
+
+  function pad(value) { return String(value).padStart(2, '0'); }
+
+  /* ---------- interfaz ---------- */
+
+  function showAlert(message, type) {
+    var alert = $('#alert');
+    alert.textContent = message || '';
+    alert.className = 'alert ' + (type || 'error');
+    alert.hidden = !message;
+    if (message) alert.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  function setBusy(isBusy, message) {
+    state.busy = isBusy;
+    $('#loading-text').textContent = message || 'Cargando...';
+    $('#loading').hidden = !isBusy;
+    updateConfirmButton();
+  }
+
+  function updateConfirmButton() {
+    $('#confirm').disabled = state.busy || !state.selectedSlot;
+  }
+
+  /* ---------- transporte ---------- */
+
+  function readApi(action) {
+    var url = API_URL + (API_URL.indexOf('?') === -1 ? '?' : '&') + 'action=' + encodeURIComponent(action);
+    if (CAMPAIGN_ID) url += '&campaignId=' + encodeURIComponent(CAMPAIGN_ID);
+    return request(url, { method: 'GET' });
+  }
+
+  // POST con cuerpo de texto plano: petición simple, sin preflight CORS,
+  // y los datos personales no viajan en la URL.
+  function writeApi(payload) {
+    return request(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+  }
+
+  function request(url, options) {
+    return fetch(url, options).then(function (response) {
+      if (!response.ok) throw buildError('NETWORK_ERROR', 'No pudimos conectar con el servidor. Revisa tu conexión.');
+      return response.text();
+    }).then(function (text) {
+      var data;
+      try { data = JSON.parse(text); }
+      catch (error) { throw buildError('NETWORK_ERROR', 'El servidor respondió de forma inesperada. Vuelve a intentarlo.'); }
+      if (!data || data.success !== true) throw buildError(data && data.code, data && data.message, data);
+      return data;
+    });
+  }
+
+  function buildError(code, message, data) {
+    var error = new Error(message || 'No pudimos completar la operación.');
+    error.code = code || 'INTERNAL_ERROR';
+    error.data = data || null;
+    return error;
+  }
+
+  /* ---------- carga de disponibilidad ---------- */
+
+  function applyAvailability(data) {
+    state.campaign = data.campaign || null;
+    state.byDate = {};
+    (data.days || []).forEach(function (day) { state.byDate[day.date] = day.slots || []; });
+    state.months = Object.keys(state.byDate).map(monthKey).filter(function (key, index, all) {
+      return all.indexOf(key) === index;
+    }).sort();
+
+    if (state.campaign) {
+      $('#campaign-name').textContent = state.campaign.name || 'Registro';
+      if (state.campaign.description) $('#campaign-description').textContent = state.campaign.description;
+    }
+
+    if (state.selectedDate && !state.byDate[state.selectedDate]) state.selectedDate = '';
+    state.monthIndex = state.selectedDate
+      ? Math.max(0, state.months.indexOf(monthKey(state.selectedDate)))
+      : 0;
+    state.selectedSlot = null;
+    renderMonth();
+  }
+
+  function loadBootstrap() {
+    setBusy(true, 'Cargando horarios...');
+    return readApi('bootstrap').then(function (data) {
+      if (data.app) {
+        $('#company-name').textContent = data.app.company || 'Campaña de Salud';
+        $('#app-title').textContent = data.app.title || 'Reserva tu cita';
+        document.title = (data.app.title || 'Reserva tu cita') + ' — ' + (data.app.company || 'Campaña de Salud');
+      }
+      applyAvailability(data);
+      $('#booking').hidden = false;
+    }).catch(function (error) {
+      $('#booking').hidden = false;
+      showAlert(error.message, error.code === 'CAMPAIGN_NOT_FOUND' ? 'warning' : 'error');
+      renderMonth();
+    }).finally(function () { setBusy(false); });
+  }
+
+  function refreshAvailability() {
+    return readApi('availability').then(applyAvailability).catch(function () { /* se conserva lo ya mostrado */ });
+  }
+
+  /* ---------- calendario ---------- */
+
+  function renderMonth() {
+    var grid = $('#calendar-days');
+    grid.innerHTML = '';
+
+    if (!state.months.length) {
+      $('#month-label').textContent = 'Sin fechas disponibles';
+      $('#prev-month').disabled = true;
+      $('#next-month').disabled = true;
+      renderSlots();
+      return;
+    }
+
+    var key = state.months[state.monthIndex];
+    var parts = key.split('-');
+    var year = Number(parts[0]);
+    var month = Number(parts[1]);
+
+    $('#month-label').textContent = monthLabel(key);
+    $('#prev-month').disabled = state.monthIndex <= 0;
+    $('#next-month').disabled = state.monthIndex >= state.months.length - 1;
+
+    var offset = firstWeekday(year, month);
+    for (var blank = 0; blank < offset; blank++) {
+      var filler = document.createElement('div');
+      filler.className = 'calendar-empty';
+      grid.appendChild(filler);
+    }
+
+    var total = daysInMonth(year, month);
+    for (var day = 1; day <= total; day++) {
+      var date = year + '-' + pad(month) + '-' + pad(day);
+      var slots = state.byDate[date];
+      var cell = document.createElement('button');
+      cell.type = 'button';
+      cell.className = 'calendar-day' + (date === state.selectedDate ? ' is-selected' : '');
+      cell.textContent = String(day);
+      if (slots && slots.length) {
+        cell.setAttribute('aria-label', longDateLabel(date) + ', ' + slots.length + ' horarios disponibles');
+        var dot = document.createElement('span');
+        dot.className = 'dot';
+        cell.appendChild(dot);
+        cell.dataset.date = date;
+      } else {
+        cell.disabled = true;
+      }
+      grid.appendChild(cell);
+    }
+    renderSlots();
+  }
+
+  function renderSlots() {
+    var container = $('#slots');
+    container.innerHTML = '';
+
+    if (!state.selectedDate) {
+      $('#selected-date').hidden = true;
+      var hint = document.createElement('p');
+      hint.className = 'empty';
+      hint.textContent = state.months.length
+        ? 'Selecciona un día marcado en el calendario.'
+        : 'No hay horarios disponibles por ahora.';
+      container.appendChild(hint);
+      updateConfirmButton();
+      return;
+    }
+
+    $('#selected-date').textContent = longDateLabel(state.selectedDate);
+    $('#selected-date').hidden = false;
+
+    var slots = state.byDate[state.selectedDate] || [];
+    if (!slots.length) {
+      var empty = document.createElement('p');
+      empty.className = 'empty';
+      empty.textContent = 'Ya no quedan horarios libres ese día.';
+      container.appendChild(empty);
+      updateConfirmButton();
+      return;
+    }
+
+    slots.forEach(function (slot) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'slot-button' + (state.selectedSlot && state.selectedSlot.slotId === slot.slotId ? ' is-selected' : '');
+      button.textContent = slot.start;
+      button.setAttribute('aria-label', slot.start + ' a ' + slot.end + ', ' + slot.available + ' cupos');
+      button.addEventListener('click', function () {
+        state.selectedSlot = slot;
+        renderSlots();
+        showAlert('');
+      });
+      container.appendChild(button);
+    });
+    updateConfirmButton();
+  }
+
+  /* ---------- formulario ---------- */
+
+  function fieldValue(id) { return $('#' + id).value.trim(); }
+
+  function markInvalid(id, isInvalid) { $('#' + id).setAttribute('aria-invalid', isInvalid ? 'true' : 'false'); }
+
+  function validateForm() {
+    var nombres = fieldValue('nombres');
+    var apellidos = fieldValue('apellidos');
+    var dni = fieldValue('dni');
+    markInvalid('nombres', !nombres);
+    markInvalid('apellidos', !apellidos);
+    markInvalid('dni', !/^\d{8}$/.test(dni));
+
+    if (!nombres || !apellidos) { showAlert('Escribe tus nombres y apellidos.'); return null; }
+    if (!/^\d{8}$/.test(dni)) { showAlert('El DNI debe tener exactamente 8 dígitos.'); return null; }
+    if (!state.selectedSlot) { showAlert('Selecciona un horario disponible.'); return null; }
+
+    return {
+      action: 'reserve',
+      campaignId: state.campaign ? state.campaign.campaignId : CAMPAIGN_ID,
+      slotId: state.selectedSlot.slotId,
+      dni: dni,
+      nombres: nombres,
+      apellidos: apellidos,
+      telefono: fieldValue('telefono'),
+      area: fieldValue('area'),
+      correo: fieldValue('correo')
+    };
+  }
+
+  function submitReservation(event) {
+    event.preventDefault();
+    if (state.busy) return;
+    showAlert('');
+    var payload = validateForm();
+    if (!payload) return;
+
+    setBusy(true, 'Confirmando tu cita...');
+    writeApi(payload).then(function (data) {
+      renderConfirmation(data.reservation);
+    }).catch(function (error) {
+      // El servidor resuelve el conflicto dentro de su bloqueo: si alguien
+      // ganó el horario, se recarga la disponibilidad y se pide elegir otro.
+      if (error.code === 'HORARIO_OCUPADO' || error.code === 'SLOT_NOT_FOUND') {
+        return refreshAvailability().then(function () {
+          showAlert('Ese horario acaba de ser tomado. Elige otro, por favor.', 'warning');
+        });
+      }
+      if (error.code === 'PERSONA_YA_REGISTRADA' && error.data && error.data.existingReservation) {
+        var existing = error.data.existingReservation;
+        showAlert('Ese DNI ya tiene una cita en esta campaña: ' + longDateLabel(existing.date) + ' a las ' + existing.time + ' (código ' + existing.reservationCode + ').', 'warning');
+        return;
+      }
+      showAlert(error.message);
+    }).finally(function () { setBusy(false); });
+  }
+
+  function renderConfirmation(reservation) {
+    $('#confirmation-name').textContent = reservation.name || [fieldValue('nombres'), fieldValue('apellidos')].join(' ');
+    $('#confirmation-date').textContent = longDateLabel(reservation.date);
+    $('#confirmation-time').textContent = reservation.time;
+    $('#confirmation-code').textContent = reservation.reservationCode;
+    $('#booking').hidden = true;
+    $('#confirmation').hidden = false;
+    showAlert('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function resetForm() {
+    ['nombres', 'apellidos', 'dni', 'telefono', 'area', 'correo'].forEach(function (id) {
+      $('#' + id).value = '';
+      markInvalid(id, false);
+    });
+    state.selectedDate = '';
+    state.selectedSlot = null;
+    $('#confirmation').hidden = true;
+    $('#booking').hidden = false;
+    showAlert('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setBusy(true, 'Actualizando horarios...');
+    refreshAvailability().finally(function () { setBusy(false); });
+  }
+
+  /* ---------- arranque ---------- */
+
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!API_URL) {
+      $('#setup').hidden = false;
+      return;
+    }
+
+    $('#dni').addEventListener('input', function () {
+      this.value = this.value.replace(/\D/g, '').slice(0, 8);
+    });
+
+    $('#calendar-days').addEventListener('click', function (event) {
+      var cell = event.target.closest('.calendar-day');
+      if (!cell || cell.disabled || !cell.dataset.date) return;
+      state.selectedDate = cell.dataset.date;
+      state.selectedSlot = null;
+      showAlert('');
+      renderMonth();
+    });
+
+    $('#prev-month').addEventListener('click', function () {
+      if (state.monthIndex > 0) { state.monthIndex--; renderMonth(); }
+    });
+    $('#next-month').addEventListener('click', function () {
+      if (state.monthIndex < state.months.length - 1) { state.monthIndex++; renderMonth(); }
+    });
+
+    $('#booking').addEventListener('submit', submitReservation);
+    $('#new-reservation').addEventListener('click', resetForm);
+
+    loadBootstrap();
+  });
+})();
+</script>
+</body>
+</html>

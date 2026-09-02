@@ -16,21 +16,25 @@ El administrador crea una campaña y genera los horarios disponibles desde el ed
 
 ### Arquitectura
 
+Hay **dos interfaces** sobre el mismo backend y la misma hoja de cálculo: la app alojada dentro de Apps Script y el portal estático de GitHub Pages (sección 3).
+
 ```text
-┌──────────────────────────┐
-│  Navegador (celular)     │  Index.html + Styles.html + Scripts.html
-│  Flujo de 4 pasos        │  JavaScript vanilla, sin frameworks
-└───────────┬──────────────┘
-            │ google.script.run  (RPC de Apps Script, lista blanca de funciones)
-┌───────────▼──────────────┐
-│  Apps Script V8          │  Main / Validation / *Service.gs
-│  Lógica + LockService    │  Bloqueo global para evitar dobles reservas
-└───────────┬──────────────┘
-            │ SpreadsheetApp
-┌───────────▼──────────────┐
-│  Google Spreadsheet      │  7 hojas: CONFIG, CAMPANAS, HORARIOS,
-│  PRIVADO (no compartido) │  PERSONAS, RESERVAS, AUDITORIA, AGENDA_MEDICO
-└──────────────────────────┘
+┌──────────────────────────┐   ┌──────────────────────────┐
+│  App en Apps Script      │   │  Portal en GitHub Pages  │
+│  Index/Styles/Scripts    │   │  docs/index.html         │
+└───────────┬──────────────┘   └───────────┬──────────────┘
+            │ google.script.run             │ fetch GET/POST JSON
+            │ (lista blanca de funciones)   │ (Api.gs)
+┌───────────▼───────────────────────────────▼──────────────┐
+│  Apps Script V8 — Main / Validation / *Service.gs / Api  │
+│  Lógica + LockService: bloqueo global, una sola verdad   │
+└───────────────────────────┬──────────────────────────────┘
+                            │ SpreadsheetApp
+┌───────────────────────────▼──────────────────────────────┐
+│  Google Spreadsheet PRIVADO (nunca se comparte)          │
+│  CONFIG · CAMPANAS · HORARIOS · PERSONAS · RESERVAS ·    │
+│  AUDITORIA · AGENDA_MEDICO                               │
+└──────────────────────────────────────────────────────────┘
 ```
 
 El Spreadsheet **nunca se comparte**. La aplicación web se despliega con `executeAs: USER_DEPLOYING`, de modo que la app corre con los permisos del dueño y el visitante anónimo jamás toca la hoja directamente: solo puede invocar las funciones públicas listadas más abajo.
@@ -60,7 +64,7 @@ El paso 3 **no expone un selector de campaña**: el cliente llama a `getActiveCa
 | `AUDITORIA` | Bitácora append-only | `timestamp`, `accion`, `reservation_id`, `dni`, `detalle` |
 | `AGENDA_MEDICO` | Vista reconstruible para el médico | `fecha`, `hora`, `DNI`, `nombres`, `apellidos`, `area`, `estado`, `reservation_code` |
 
-Claves de `CONFIG` con valores por defecto: `EMPRESA`, `TITULO_APP`, `DURACION_SLOT` (15), `ZONA_HORARIA` (`America/Lima`), `RESERVAS_POR_PERSONA` (1).
+Claves de `CONFIG` con valores por defecto: `EMPRESA`, `TITULO_APP`, `DURACION_SLOT` (60), `ZONA_HORARIA` (`America/Lima`), `RESERVAS_POR_PERSONA` (1).
 
 Todos los identificadores usan `Utilities.getUuid()`. El `reservation_code` tiene formato `CS-XXXXX` con un alfabeto sin caracteres ambiguos (`ABCDEFGHJKLMNPQRSTUVWXYZ23456789`) y se reintenta hasta encontrar uno no usado. Las columnas de ID, fecha y hora se formatean como texto (`@`) para que Sheets no las reinterprete como números o fechas.
 
@@ -125,6 +129,9 @@ Si un segundo usuario intenta el mismo slot, entra al lock después y encuentra 
 | `AuditService.gs` | Escritura en la bitácora |
 | `MedicalAgendaService.gs` | Reconstrucción de la agenda del médico |
 | `Tests.gs` | `runValidationTests()` con aserciones básicas |
+| `Api.gs` | API JSON que consume el portal estático |
+| `docs/index.html` | Portal público de una sola página para GitHub Pages |
+| `docs/config.js` | URL de la implementación de Apps Script que usa el portal |
 | `Index.html` / `Styles.html` / `Scripts.html` | Interfaz de 4 pasos, estilos y lógica de cliente |
 | `.clasp.json.example` / `.claspignore` | Plantilla y exclusiones para desarrollo con clasp |
 | `artifact-build/` | Script Node que genera un `.xlsx` semilla con las 7 hojas y sus cabeceras |
@@ -274,3 +281,59 @@ Ejecuta `buildMedicalAgenda()` desde Apps Script para reconstruir `AGENDA_MEDICO
 - No hay envío automático por WhatsApp, correo ni SMS.
 - La cancelación pública requiere código y DNI, pero no existe todavía una interfaz visual de cancelación.
 - Para V2: autenticación administrativa, interfaz de agenda protegida, recordatorios, límite de intentos por IP mediante una capa externa y exportación controlada.
+
+---
+
+## 3. Portal público (GitHub Pages)
+
+Además de la aplicación alojada dentro de Apps Script, el repositorio incluye un **portal estático** en `docs/`, pensado para publicarse en GitHub Pages y compartirse por WhatsApp o QR.
+
+### Qué es
+
+Una sola página (`docs/index.html`), sin dependencias ni frameworks, con logo médico en SVG en línea. Un formulario corto —**nombres, apellidos y DNI obligatorios**; teléfono, área y correo opcionales, plegados tras "Datos opcionales"— y un calendario que despliega la disponibilidad **por mes, por día y por hora**:
+
+- Flechas ‹ › para moverse entre los meses que tienen cupo; se deshabilitan en los extremos.
+- Rejilla mensual con la semana empezando en lunes. Solo los días con horarios libres quedan habilitados y llevan un punto.
+- Al elegir un día aparecen las horas disponibles como botones.
+
+### Por qué no hay conflictos de horario
+
+GitHub Pages solo sirve archivos estáticos: **no puede impedir por sí mismo que dos personas tomen la misma hora**. El portal es únicamente la interfaz; la garantía sigue estando en Apps Script.
+
+1. Al cargar, el portal pide la disponibilidad y muestra solo slots con cupo.
+2. Al confirmar, envía la reserva a `createReservation()`, que decide **dentro de `LockService.getScriptLock()`**, releyendo el slot antes de escribir.
+3. Si otra persona ganó ese horario en el intervalo, el servidor responde `HORARIO_OCUPADO`; el portal recarga la disponibilidad, deselecciona la hora y pide elegir otra.
+4. Si el DNI ya tenía cita en la campaña, muestra la reserva existente con su fecha, hora y código.
+
+El portal no puede crear una reserva que el servidor no haya aceptado: la hoja de cálculo es la única fuente de verdad.
+
+### API JSON
+
+`Api.gs` expone la API que consume el portal; el enrutamiento entra por `doGet`/`doPost` en `Main.gs`. La aplicación HTML alojada en Apps Script sigue funcionando igual: `doGet` solo entrega JSON cuando la petición trae `?action=`.
+
+| Método | Acción | Devuelve |
+|---|---|---|
+| `GET ?action=bootstrap` | Carga inicial | Config de la app, campaña activa y días con horarios |
+| `GET ?action=availability` | Refresco | Campaña y días con horarios |
+| `POST {action:'reserve', ...}` | Crear reserva | Reserva confirmada con su código |
+| `POST {action:'status', ...}` | Consultar | Reserva por código + DNI |
+| `POST {action:'cancel', ...}` | Cancelar | Reserva cancelada y cupo liberado |
+
+Las lecturas van por GET porque no llevan datos personales. Las escrituras van por **POST con cuerpo JSON enviado como texto plano**: es una petición simple (sin preflight CORS) y evita que el DNI y los nombres queden en la query string ni en los registros de URL.
+
+### Puesta en marcha del portal
+
+1. Despliega el proyecto de Apps Script como aplicación web (`Implementar > Nueva implementación > Aplicación web`), con acceso **"Cualquier usuario"** para que el portal pueda llamarlo sin sesión de Google. Copia la URL que termina en `/exec`.
+2. Edita [`docs/config.js`](docs/config.js) y pega esa URL en `apiUrl`. Deja `campaignId` vacío para que use automáticamente la primera campaña activa.
+3. Publica: `Settings > Pages > Source: Deploy from a branch`, rama `main`, carpeta `/docs`.
+4. Comparte la URL de Pages. Mientras `apiUrl` esté vacío, el portal muestra un aviso de configuración pendiente en vez del formulario.
+
+Cada cambio en el código de Apps Script exige **crear una nueva versión de la implementación** (o actualizar la existente); si no, la URL `/exec` seguirá sirviendo la versión anterior y el portal no verá la API.
+
+### Consideraciones del portal público
+
+- La URL `/exec` queda visible en `docs/config.js` y, por tanto, en el repositorio público y en el código fuente de la página. Es un endpoint anónimo de escritura: cualquiera que la encuentre puede intentar registrar reservas. Las defensas actuales son las validaciones del servidor (DNI de 8 dígitos, una reserva activa por DNI y campaña, capacidad por slot) y el hecho de que solo existan los horarios que tú generas. Para una campaña real y acotada en el tiempo suele bastar; si necesitas más, la V2 contempla una capa externa con límite de intentos.
+- El Spreadsheet **sigue siendo privado**. El portal nunca lo toca directamente: solo llama a las funciones públicas de Apps Script.
+- El portal no consulta DNI contra el padrón de `PERSONAS` para autocompletar nombres. Es deliberado: un endpoint público de búsqueda por DNI permitiría enumerar documentos y obtener nombres.
+- La página lleva `<meta name="robots" content="noindex">` para que no aparezca en buscadores.
+

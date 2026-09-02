@@ -14,6 +14,51 @@ function setupSystem() {
   });
 }
 
+function seedDemoSchedule() {
+  return migrateDemoToHourly();
+}
+
+function migrateDemoToHourly() {
+  return withPublicErrorHandling_(function () {
+    assertAdminExecution_();
+    const configTable = readRows_(SHEET_NAMES_.CONFIG);
+    const durationRow = configTable.rows.find(function (row) { return String(row.CLAVE) === 'DURACION_SLOT'; });
+    if (durationRow) updateRow_(SHEET_NAMES_.CONFIG, durationRow.rowNumber, ['DURACION_SLOT', '60']);
+
+    const oldCampaign = getCampaignById_('CAM-DEMO-2026');
+    if (oldCampaign && isTrueValue_(oldCampaign.activo)) {
+      updateRow_(SHEET_NAMES_.CAMPAIGNS, oldCampaign.rowNumber, rowToValues_(SHEET_NAMES_.CAMPAIGNS, Object.assign({}, oldCampaign, { activo: false, updated_at: nowText_() })));
+    }
+
+    const campaignId = 'CAM-DEMO-60-2026';
+    let campaign = getCampaignById_(campaignId);
+    if (!campaign) {
+      const timestamp = nowText_();
+      appendRows_(SHEET_NAMES_.CAMPAIGNS, [[
+        campaignId,
+        'Demo - Horarios de una hora',
+        'Horarios de prueba de 60 minutos',
+        '2026-09-03',
+        '2026-09-05',
+        true,
+        timestamp,
+        timestamp
+      ]]);
+      campaign = getCampaignById_(campaignId);
+    }
+    const dates = ['2026-09-03', '2026-09-04', '2026-09-05'];
+    const results = dates.map(function (date) {
+      return generateSlots({ campaignId: campaign.campaign_id, date: date, start: '08:00', end: '13:00', durationMinutes: 60, capacity: 1 });
+    });
+    return {
+      success: true,
+      campaignId: campaignId,
+      dates: dates,
+      created: results.reduce(function (total, result) { return total + Number(result.created || 0); }, 0)
+    };
+  });
+}
+
 function ensureHeaders_(sheet, headers) {
   if (sheet.getLastRow() === 0) {
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);

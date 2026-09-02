@@ -1,5 +1,5 @@
 <script>
-  const state = { step: 1, campaigns: [], selectedCampaignId: '', dates: [], selectedSlot: null, loading: false };
+  const state = { step: 1, campaigns: [], selectedCampaignId: '', dates: [], selectedDate: '', calendarMonth: '', selectedSlot: null, loading: false };
   const $ = (selector) => document.querySelector(selector);
 
   function runServer(functionName, ...args) {
@@ -7,6 +7,7 @@
       const allowedFunctions = new Set([
         'getAppConfig',
         'getActiveCampaigns',
+        'getBookingCalendar',
         'getCampaignDates',
         'getAvailableSlots',
         'lookupPersonByDni',
@@ -61,12 +62,16 @@
   }
 
   async function loadCampaigns() {
-    setLoading(true, 'Consultando campañas...');
+    setLoading(true, 'Cargando agenda...');
     try {
-      const response = handleResponse(await runServer('getActiveCampaigns'));
+      const response = handleResponse(await runServer('getBookingCalendar'));
       state.campaigns = response.campaigns || [];
-      state.selectedCampaignId = state.campaigns.length ? state.campaigns[0].campaignId : '';
-      if (state.selectedCampaignId) await loadDates();
+      state.selectedCampaignId = response.campaignId || '';
+      state.dates = response.dates || [];
+      state.selectedDate = '';
+      state.calendarMonth = state.dates.length ? toMonthKey_(state.dates[0]) : currentMonthKey_();
+      renderCalendar();
+      if (!state.dates.length) $('#slots').innerHTML = '<p class="empty">No hay horarios disponibles.</p>';
     } catch (error) { showAlert(error.message); }
     finally { setLoading(false); }
   }
@@ -88,29 +93,90 @@
 
   async function loadDates() {
     state.selectedSlot = null;
+    state.selectedDate = '';
     $('#confirm-reservation').disabled = true;
     const campaignId = state.selectedCampaignId;
-    $('#date').innerHTML = '<option value="">Consultando fechas...</option>';
-    $('#date').disabled = true;
     $('#slots').innerHTML = '';
-    if (!campaignId) { $('#date').innerHTML = '<option value="">Selecciona una fecha</option>'; return; }
+    $('#selected-date').hidden = true;
+    if (!campaignId) { state.dates = []; state.calendarMonth = currentMonthKey_(); renderCalendar(); return; }
     setLoading(true, 'Consultando fechas...');
     try {
       const response = handleResponse(await runServer('getCampaignDates', campaignId));
       state.dates = response.dates || [];
-      $('#date').innerHTML = '<option value="">Selecciona una fecha</option>';
-      state.dates.forEach((date) => { const option = document.createElement('option'); option.value = date; option.textContent = formatDate(date); $('#date').appendChild(option); });
-      $('#date').disabled = false;
-      if (!state.dates.length) $('#slots').innerHTML = '<p class="empty">No quedan fechas disponibles para esta campaña.</p>';
+      state.calendarMonth = state.dates.length ? toMonthKey_(state.dates[0]) : currentMonthKey_();
+      renderCalendar();
+      if (!state.dates.length) $('#slots').innerHTML = '<p class="empty">No quedan fechas disponibles.</p>';
     } catch (error) { showAlert(error.message); }
     finally { setLoading(false); }
+  }
+
+  function currentMonthKey_() {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima', year: 'numeric', month: '2-digit' }).formatToParts(new Date());
+    const year = parts.find((part) => part.type === 'year').value;
+    const month = parts.find((part) => part.type === 'month').value;
+    return `${year}-${month}`;
+  }
+
+  function toMonthKey_(dateText) { return dateText.slice(0, 7); }
+
+  function shiftMonth_(monthKey, amount) {
+    const [year, month] = monthKey.split('-').map(Number);
+    const shifted = new Date(Date.UTC(year, month - 1 + amount, 1));
+    return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, '0')}`;
+  }
+
+  function formatMonthLabel_(monthKey) {
+    return new Intl.DateTimeFormat('es-PE', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${monthKey}-01T12:00:00Z`));
+  }
+
+  function renderCalendar() {
+    const monthKey = state.calendarMonth || currentMonthKey_();
+    const [year, month] = monthKey.split('-').map(Number);
+    const firstWeekday = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7;
+    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const availableDates = new Set(state.dates);
+    const days = $('#calendar-days');
+    days.textContent = '';
+    $('#calendar-month').textContent = formatMonthLabel_(monthKey);
+    for (let index = 0; index < firstWeekday; index += 1) days.appendChild(document.createElement('span')).className = 'calendar-empty';
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const dateText = `${monthKey}-${String(day).padStart(2, '0')}`;
+      const dayButton = document.createElement('button');
+      dayButton.type = 'button';
+      dayButton.className = 'calendar-day';
+      dayButton.textContent = String(day);
+      dayButton.disabled = !availableDates.has(dateText);
+      dayButton.setAttribute('aria-label', formatDate(dateText));
+      dayButton.setAttribute('role', 'gridcell');
+      if (dateText === state.selectedDate) dayButton.classList.add('is-selected');
+      if (!dayButton.disabled) dayButton.addEventListener('click', () => selectDate(dateText));
+      days.appendChild(dayButton);
+    }
+    const months = [...new Set(state.dates.map(toMonthKey_))].sort();
+    const previousDisabled = !months.length || monthKey <= months[0];
+    const nextDisabled = !months.length || monthKey >= months[months.length - 1];
+    $('#calendar-prev').disabled = previousDisabled;
+    $('#calendar-next').disabled = nextDisabled;
+  }
+
+  async function selectDate(dateText) {
+    state.selectedDate = dateText;
+    $('#selected-date').textContent = `Fecha seleccionada: ${formatDate(dateText)}`;
+    $('#selected-date').hidden = false;
+    renderCalendar();
+    await loadSlots();
+  }
+
+  function changeCalendarMonth_(amount) {
+    state.calendarMonth = shiftMonth_(state.calendarMonth || currentMonthKey_(), amount);
+    renderCalendar();
   }
 
   async function loadSlots() {
     state.selectedSlot = null;
     $('#confirm-reservation').disabled = true;
     const campaignId = state.selectedCampaignId;
-    const date = $('#date').value;
+    const date = state.selectedDate;
     $('#slots').innerHTML = '';
     if (!campaignId || !date) return;
     setLoading(true, 'Consultando horarios...');
@@ -161,13 +227,14 @@
 
   function resetForm() {
     ['dni', 'nombres', 'apellidos', 'telefono', 'area'].forEach((id) => { $(`#${id}`).value = ''; });
-    $('#date').innerHTML = '<option value="">Selecciona una fecha</option>'; $('#date').disabled = true; $('#slots').innerHTML = ''; $('#confirm-reservation').disabled = true; state.selectedSlot = null; showAlert(''); showStep(1); $('#dni').focus();
+    state.selectedCampaignId = ''; state.selectedDate = ''; state.calendarMonth = currentMonthKey_(); state.dates = []; state.selectedSlot = null; $('#selected-date').hidden = true; $('#slots').innerHTML = ''; $('#confirm-reservation').disabled = true; renderCalendar(); showAlert(''); showStep(1); $('#dni').focus();
   }
 
   document.addEventListener('DOMContentLoaded', async () => {
     $('#continue-dni').addEventListener('click', lookupDni);
     $('#continue-person').addEventListener('click', () => { if (validatePersonStep()) { showAlert(''); showStep(3); loadCampaigns(); } });
-    $('#date').addEventListener('change', loadSlots);
+    $('#calendar-prev').addEventListener('click', () => changeCalendarMonth_(-1));
+    $('#calendar-next').addEventListener('click', () => changeCalendarMonth_(1));
     $('#confirm-reservation').addEventListener('click', confirmReservation);
     $('#new-reservation').addEventListener('click', resetForm);
     $('#dni').addEventListener('input', () => { $('#dni').value = $('#dni').value.replace(/\D/g, '').slice(0, 8); });

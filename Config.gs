@@ -21,7 +21,7 @@ const SHEET_HEADERS_ = Object.freeze({
 const DEFAULT_CONFIG_ = Object.freeze({
   EMPRESA: 'Campaña de Salud',
   TITULO_APP: 'Reserva tu cita',
-  DURACION_SLOT: '15',
+  DURACION_SLOT: '60',
   ZONA_HORARIA: 'America/Lima',
   RESERVAS_POR_PERSONA: '1'
 });

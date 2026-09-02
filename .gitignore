@@ -8,3 +8,6 @@ artifact-build/node_modules
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Configuración local del entorno de desarrollo
+.claude/
